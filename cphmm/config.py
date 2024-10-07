@@ -1,0 +1,4 @@
+HMM_BLOCK_SIZE = 10
+
+HMM_PRIOR_PATH = 'data/priors/'
+HMM_PRIOR_BINS = 40
