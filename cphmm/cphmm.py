@@ -3,6 +3,7 @@ import os
 from scipy import special
 from hmmlearn import _hmmc
 from cphmm.utils import log_normalize, log_mask_zero
+import cphmm.config as config
 
 
 class ClosePairHMM:
@@ -40,7 +41,7 @@ class ClosePairHMM:
         self.n_iter = n_iter
 
     def _get_empirical_emissions(self, species_name, block_size):
-        path = os.path.join(os.path.dirname(__file__), 'dat', species_name + '.csv')
+        path = os.path.join(config.HMM_PRIOR_PATH, species_name + '.csv')
         if not os.path.exists(path):
             raise ValueError("No empirical data found for {}".format(species_name))
         dat = np.loadtxt(path)

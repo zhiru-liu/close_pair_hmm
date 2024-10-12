@@ -18,8 +18,7 @@ def init_hmm(species_name, genome_len, block_size):
     num_blocks = genome_len / block_size
     transfer_counts = 20.
     clonal_div = 5e-5
-    # transfer_length = 10000.  # default 1000
-    transfer_length = 2810.  # default 1000
+    transfer_length = 1000.  # default 1000
 
     transfer_rate = transfer_counts / num_blocks
     transfer_length = transfer_length / block_size
@@ -30,21 +29,37 @@ def init_hmm(species_name, genome_len, block_size):
     return model 
 
 
-def infer_pairs(datahelper):
-    model = init_hmm(datahelper.species_name, datahelper.genome_len, 
+def infer_pairs(datahelper, clade_cutoff_bin=None):
+    """
+    Infer the clonal divergence and transfer events for all close pairs in the datahelper
+
+    The datahelper should have the following methods / attributes:
+    - species_name: for loading the relevant species-specific data
+    - genome_len: the length of the core reference genome; for initializing the 
+    HMM
+    - get_close_pairs: a method that returns a list of close pairs to process
+    - get_pair_snp_info: a method that returns the SNP vector and location indices 
+    for a given pair. The SNP vector is a bool array for all the SNV differences
+    between a given pair. The contig names are the same length as the SNP vector
+    and indicate which contig each site belongs to. The locs are the indices of
+    the SNV sites in the contigs.
+    """
+    model = init_hmm(datahelper.species, datahelper.genome_len, 
                      cphmm.config.HMM_BLOCK_SIZE)
     good_pairs = datahelper.get_close_pairs()
 
-    pair_dat = pd.DataFrame(columns=['genome1', 'genome2', 'naive_div', 'est_div', 'genome_len', 'clonal_len'])
+    pair_dat = pd.DataFrame(columns=['genome1', 'genome2', 'naive_div', 
+                                     'est_div', 'genome_len', 'clonal_len'])
     transfer_dats = []
+    processed_count = 0
     for i, pair in enumerate(good_pairs):
-        transfer_dat = pd.DataFrame(columns=['genome1', 'genome2', 'start_block', 'end_block', 'start_site', 'end_site'])
-        snp_vec = datahelper.get_snp_vector(pair)
-        contigs = datahelper.get_contigs(pair)
+        transfer_dat = pd.DataFrame(columns=['genome1', 'genome2', 'start_block', 
+                                             'end_block', 'start_site', 'end_site'])
+        snp_vec, contigs, locs = datahelper.get_pair_snp_info(pair)
         
         try:
             clonal_div, genome_len, clonal_len, transfer_dat = \
-                ri.infer(snp_vec, contigs, model, cphmm.config.HMM_BLOCK_SIZE)
+                ri.infer(snp_vec, contigs, model, cphmm.config.HMM_BLOCK_SIZE, clade_cutoff_bin=clade_cutoff_bin)
         except:
             e = sys.exc_info()[0]
             tb = traceback.format_exc()
@@ -56,9 +71,10 @@ def infer_pairs(datahelper):
         transfer_dat['genome1'] = pair[0]
         transfer_dat['genome2'] = pair[1]
         transfer_dats.append(transfer_dat)
-        # TODO: annotate the reference genome coordinates
-        # transfer_dat['start_site'] = datahelper.snp_vec_to_genome_loc(pair, transfer_dat['snp_vec_start'])
-        # transfer_dat['end_site'] = datahelper.snp_vec_to_genome_loc(pair, transfer_dat['snp_vec_end'])
+
+        # TODO: optional: annotate the reference genome coordinates
+        # transfer_dat['start_site'] = locs[transfer_dat['snp_vec_start']]
+        # transfer_dat['end_site'] = locs[transfer_dat['snp_vec_end']]
 
         processed_count += 1
         if processed_count % 100 == 0:
