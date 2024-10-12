@@ -1,5 +1,5 @@
 import cphmm.recomb_inference as ri
-import cphmm.cphmm as cphmm
+import cphmm.config
 import infer_pipelines
 
 import numpy as np

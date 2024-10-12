@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import traceback
 
-import cphmm.cphmm as hmm
+import cphmm.model as hmm
 import cphmm.recomb_inference as ri
 import cphmm.config
 
