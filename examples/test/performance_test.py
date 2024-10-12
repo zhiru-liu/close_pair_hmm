@@ -1,3 +1,6 @@
+import cProfile
+import pstats
+
 import cphmm.recomb_inference as ri
 import cphmm.config
 import infer_pipelines
@@ -26,4 +29,9 @@ def test_performance():
 
 
 if __name__ == '__main__':
+    profiler = cProfile.Profile()
+    profiler.enable()
     test_performance()
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.print_stats(20)  # Adjust the number as needed
