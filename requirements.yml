@@ -1,0 +1,11 @@
+name: cphmm38  # Name of the environment
+channels:
+  - conda-forge  # Main conda-forge channel for other packages
+  - defaults  # Default channel for standard packages
+dependencies:
+  - conda-forge/label/cf202003::hmmlearn  # Install hmmlearn from the specific channel
+  - python=3.8  # This version of hmmlearn only works with 3.8 and below
+  - ipykernel
+  - pyarrow
+  - pandas
+  - biopython

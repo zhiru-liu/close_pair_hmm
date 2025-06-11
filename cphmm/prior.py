@@ -21,7 +21,7 @@ def get_transfer(datahelper, l):
     # good_idxs = dh.get_single_subject_idxs()
     # pair = random.sample(good_idxs, 2)
     pair = datahelper.get_random_pair()
-    snp_vec, _ = datahelper.get_snp_vector(pair)
+    snp_vec = datahelper.get_snp_vector(pair)
     div = np.mean(snp_vec)
     start_idx = np.random.randint(0, len(snp_vec) - l)
     return snp_vec[start_idx:start_idx + l], div
@@ -80,3 +80,7 @@ def save_prior(divs, counts, name):
     """
     save_path = os.path.join(config.HMM_PRIOR_PATH, name + '.csv')
     np.savetxt(save_path, np.vstack([divs, counts]))
+
+
+def get_prior_filename(species):
+    return os.path.join(config.HMM_PRIOR_PATH, species + '.csv')

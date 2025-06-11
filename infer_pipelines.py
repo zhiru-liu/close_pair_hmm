@@ -1,11 +1,8 @@
 import sys
-import os
 import logging
-import json
-import pickle
-import numpy as np
 import pandas as pd
 import traceback
+import time
 
 import cphmm.model as hmm
 import cphmm.recomb_inference as ri
@@ -29,7 +26,7 @@ def init_hmm(species_name, genome_len, block_size):
     return model 
 
 
-def infer_pairs(datahelper, clade_cutoff_bin=None):
+def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
     """
     Infer the clonal divergence and transfer events for all close pairs in the datahelper
 
@@ -37,24 +34,23 @@ def infer_pairs(datahelper, clade_cutoff_bin=None):
     - species_name: for loading the relevant species-specific data
     - genome_len: the length of the core reference genome; for initializing the 
     HMM
-    - get_close_pairs: a method that returns a list of close pairs to process
     - get_pair_snp_info: a method that returns the SNP vector and location indices 
     for a given pair. The SNP vector is a bool array for all the SNV differences
     between a given pair. The contig names are the same length as the SNP vector
     and indicate which contig each site belongs to. The locs are the indices of
     the SNV sites in the contigs.
+
+    :param datahelper: an object with the above methods / attributes
+    :param pairs: a list of pairs of sample names to infer
     """
     model = init_hmm(datahelper.species, datahelper.genome_len, 
                      cphmm.config.HMM_BLOCK_SIZE)
-    good_pairs = datahelper.get_close_pairs()
 
     pair_dat = pd.DataFrame(columns=['genome1', 'genome2', 'naive_div', 
                                      'est_div', 'genome_len', 'clonal_len'])
     transfer_dats = []
     processed_count = 0
-    for i, pair in enumerate(good_pairs):
-        transfer_dat = pd.DataFrame(columns=['genome1', 'genome2', 'start_block', 
-                                             'end_block', 'start_site', 'end_site'])
+    for i, pair in enumerate(pairs):
         snp_vec, contigs, locs = datahelper.get_pair_snp_info(pair)
         
         try:
@@ -66,19 +62,24 @@ def infer_pairs(datahelper, clade_cutoff_bin=None):
             print(pair)
             print(tb)
             raise e
+        print("Inferred pair %s" % str(pair))
         naive_div, est_div = clonal_div
         pair_dat.loc[i] = [pair[0], pair[1], naive_div, est_div, genome_len, clonal_len]
         transfer_dat['genome1'] = pair[0]
         transfer_dat['genome2'] = pair[1]
         transfer_dats.append(transfer_dat)
 
-        # TODO: optional: annotate the reference genome coordinates
-        # transfer_dat['start_site'] = locs[transfer_dat['snp_vec_start']]
-        # transfer_dat['end_site'] = locs[transfer_dat['snp_vec_end']]
+        # annotate the reference genome coordinates
+        transfer_dat['start_site'] = locs[transfer_dat['snp_vec_start'].astype(int).values]
+        transfer_dat['end_site'] = locs[transfer_dat['snp_vec_end'].astype(int).values]
+        transfer_dat['contig'] = contigs[transfer_dat['snp_vec_start'].astype(int).values]
 
         processed_count += 1
         if processed_count % 100 == 0:
-            logging.info("Finished %d out of %d pairs" % (processed_count, len(good_pairs)))
-
-    transfer_dat = pd.concat(transfer_dats)
+            print("Finished {} out of {} pairs at {}".format(processed_count, len(pairs), time.ctime()))
+    if len(transfer_dats) == 0:
+        print("No transfer events detected")
+        transfer_dat = pd.DataFrame(columns=['genome1', 'genome2', 'snp_vec_start', 'snp_vec_end'])
+    else:
+        transfer_dat = pd.concat(transfer_dats).reset_index(drop=True)
     return pair_dat, transfer_dat
