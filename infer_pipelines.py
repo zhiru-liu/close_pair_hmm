@@ -27,6 +27,22 @@ def init_hmm(species_name, genome_len, block_size, prior_path=None):
     return model 
 
 
+def annotate_transfer_reference_coordinates(transfer_dat, contigs, locs):
+    """
+    Add inclusive reference coordinates to transfer rows.
+
+    ``snp_vec_start`` is left-inclusive and ``snp_vec_end`` is right-exclusive.
+    Reference start/end sites in the output are both inclusive.
+    """
+    start_idx = transfer_dat['snp_vec_start'].astype(int)
+    end_idx = transfer_dat['snp_vec_end'].astype(int).clip(upper=len(locs)) - 1
+
+    transfer_dat['start_site'] = locs[start_idx.values]
+    transfer_dat['end_site'] = locs[end_idx.values]
+    transfer_dat['contig'] = contigs[start_idx.values]
+    return transfer_dat
+
+
 def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
     """
     Infer the clonal divergence and transfer events for all close pairs in the datahelper
@@ -72,9 +88,7 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
         transfer_dats.append(transfer_dat)
 
         # annotate the reference genome coordinates
-        transfer_dat['start_site'] = locs[transfer_dat['snp_vec_start'].astype(int).values]
-        transfer_dat['end_site'] = locs[transfer_dat['snp_vec_end'].astype(int).values]
-        transfer_dat['contig'] = contigs[transfer_dat['snp_vec_start'].astype(int).values]
+        annotate_transfer_reference_coordinates(transfer_dat, contigs, locs)
 
         processed_count += 1
         if processed_count % 100 == 0:

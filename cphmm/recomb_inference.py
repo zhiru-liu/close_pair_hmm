@@ -133,7 +133,7 @@ def prepare_transfer_df(starts, ends, contig_lengths, block_size):
     for i, row in df_transfers.iterrows():
         snp_vec_start = seq_manip.block_loc_to_genome_loc(row['block_start'], contig_lengths, block_size, left=True)
         # right end is exclusive
-        snp_vec_end = seq_manip.block_loc_to_genome_loc(row['block_end'] - 1, contig_lengths, block_size, left=False)
+        snp_vec_end = seq_manip.block_loc_to_genome_loc(row['block_end'], contig_lengths, block_size, left=False)
         df_transfers.loc[i, 'snp_vec_start'] = snp_vec_start
         df_transfers.loc[i, 'snp_vec_end'] = snp_vec_end
     return df_transfers
