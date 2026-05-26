@@ -1,6 +1,10 @@
 import numpy as np
 from scipy import special
 
+from . import _cphmm_kernels
+
+_USE_NUMBA = _cphmm_kernels.HAS_NUMBA
+
 
 def _logsumexp_1d(x):
     """Tight log-sum-exp for a 1-D float array.
@@ -68,6 +72,13 @@ def forward_log(log_startprob, log_transmat, framelogprob):
 
 
 def _forward_log_cphmm(log_startprob, log_transmat, framelogprob):
+    if _USE_NUMBA:
+        return _cphmm_kernels.forward_log_cphmm(
+            np.ascontiguousarray(log_startprob, dtype=np.float64),
+            np.ascontiguousarray(log_transmat, dtype=np.float64),
+            np.ascontiguousarray(framelogprob, dtype=np.float64),
+        )
+
     n_samples, n_components = framelogprob.shape
     fwdlattice = np.empty((n_samples, n_components))
     fwdlattice[0] = log_startprob + framelogprob[0]
@@ -112,6 +123,12 @@ def backward_log(log_transmat, framelogprob):
 
 
 def _backward_log_cphmm(log_transmat, framelogprob):
+    if _USE_NUMBA:
+        return _cphmm_kernels.backward_log_cphmm(
+            np.ascontiguousarray(log_transmat, dtype=np.float64),
+            np.ascontiguousarray(framelogprob, dtype=np.float64),
+        )
+
     n_samples, n_components = framelogprob.shape
     bwdlattice = np.empty((n_samples, n_components))
     bwdlattice[-1] = 0.0
@@ -159,6 +176,13 @@ def viterbi_log(log_startprob, log_transmat, framelogprob):
 
 
 def _viterbi_log_cphmm(log_startprob, log_transmat, framelogprob):
+    if _USE_NUMBA:
+        return _cphmm_kernels.viterbi_log_cphmm(
+            np.ascontiguousarray(log_startprob, dtype=np.float64),
+            np.ascontiguousarray(log_transmat, dtype=np.float64),
+            np.ascontiguousarray(framelogprob, dtype=np.float64),
+        )
+
     n_samples, n_components = framelogprob.shape
     viterbi_lattice = np.empty((n_samples, n_components))
     backpointers = np.zeros((n_samples, n_components), dtype=int)
@@ -227,6 +251,19 @@ def compute_log_xi_sum(fwdlattice, log_transmat, bwdlattice, framelogprob):
 
 
 def _compute_log_xi_sum_cphmm(fwdlattice, log_transmat, bwdlattice, framelogprob):
+    if _USE_NUMBA:
+        return _cphmm_kernels.log_xi_sum_cphmm(
+            np.ascontiguousarray(fwdlattice, dtype=np.float64),
+            np.ascontiguousarray(log_transmat, dtype=np.float64),
+            np.ascontiguousarray(bwdlattice, dtype=np.float64),
+            np.ascontiguousarray(framelogprob, dtype=np.float64),
+        )
+    return _compute_log_xi_sum_cphmm_numpy(
+        fwdlattice, log_transmat, bwdlattice, framelogprob
+    )
+
+
+def _compute_log_xi_sum_cphmm_numpy(fwdlattice, log_transmat, bwdlattice, framelogprob):
     """Sum expected transitions in log space for the CP-HMM topology.
 
     Vectorized across t: instead of a Python loop with three ``np.logaddexp``
