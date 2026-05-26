@@ -19,10 +19,18 @@ def to_block(bool_array, block_size):
     :param block_size:
     :return: An array of counts of Trues in blocks
     """
-    # coarse-graining the bool array (snp array) into blocks
+    # coarse-graining the snp array into counts of nonzero sites per block
+    bool_array = np.asarray(bool_array).ravel()
     num_blocks = length_to_num_blocks(len(bool_array), block_size)
-    bins = np.arange(0, num_blocks * block_size + 1, block_size)
-    counts, _ = np.histogram(np.nonzero(bool_array), bins)
+    counts = np.zeros(num_blocks, dtype=int)
+    full_blocks = len(bool_array) // block_size
+    if full_blocks:
+        counts[:full_blocks] = np.count_nonzero(
+            bool_array[:full_blocks * block_size].reshape(full_blocks, block_size),
+            axis=1,
+        )
+    if len(bool_array) % block_size:
+        counts[full_blocks] = np.count_nonzero(bool_array[full_blocks * block_size:])
     return counts
 
 

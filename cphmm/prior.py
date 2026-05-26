@@ -14,20 +14,24 @@ import numpy as np
 import cphmm.config as config
 
 
-def get_transfer(datahelper, l):
+def get_transfer(datahelper, l, rng=None):
     """
     Sample a block of length l from a random pair
     """
+    if rng is None:
+        rng = np.random.default_rng()
     # good_idxs = dh.get_single_subject_idxs()
     # pair = random.sample(good_idxs, 2)
     pair = datahelper.get_random_pair()
     snp_vec = datahelper.get_snp_vector(pair)
     div = np.mean(snp_vec)
-    start_idx = np.random.randint(0, len(snp_vec) - l)
+    if len(snp_vec) < l:
+        raise ValueError("SNP vector is shorter than the requested block size")
+    start_idx = rng.integers(0, len(snp_vec) - l + 1)
     return snp_vec[start_idx:start_idx + l], div
 
 
-def sample_blocks(datahelper, num_samples=5000, block_size=1000):
+def sample_blocks(datahelper, num_samples=5000, block_size=1000, random_state=None):
     """
     Samples num_samples blocks of length block_size from random pairs of genomes
     and computes the mean divergence in each block.
@@ -35,10 +39,18 @@ def sample_blocks(datahelper, num_samples=5000, block_size=1000):
     divergence in each block, and genome_divs contains the divergence of the 
     genome.
     """
+    if hasattr(datahelper, "sample_prior_blocks"):
+        return datahelper.sample_prior_blocks(
+            num_samples=num_samples,
+            block_size=block_size,
+            random_state=random_state,
+        )
+
+    rng = np.random.default_rng(random_state)
     local_divs = []
     genome_divs = []
     for i in range(num_samples):
-        seq, genome_div = get_transfer(datahelper, block_size)
+        seq, genome_div = get_transfer(datahelper, block_size, rng=rng)
         local_div = np.mean(seq)
         local_divs.append(local_div)
         genome_divs.append(genome_div)
@@ -58,7 +70,10 @@ def compute_div_histogram(local_divs, genome_divs, num_bins=config.HMM_PRIOR_BIN
     The clade_cutoff parameter determines the genome_div threshold for 
     separating the clades.
     """
-    bins = np.linspace(0, max(local_divs), num_bins + 1)
+    max_div = max(local_divs)
+    if max_div == 0:
+        max_div = 1.0 / max(len(local_divs), 1)
+    bins = np.linspace(0, max_div, num_bins + 1)
     divs = (bins[:-1] + bins[1:]) / 2
     if separate_clades:
         # For B. vulgatus and others that need to classify the transfer
@@ -74,13 +89,18 @@ def compute_div_histogram(local_divs, genome_divs, num_bins=config.HMM_PRIOR_BIN
     return divs, counts
 
 
-def save_prior(divs, counts, name):
+def save_prior(divs, counts, name, prior_path=None):
     """
     Save the prior to a csv file
     """
-    save_path = os.path.join(config.HMM_PRIOR_PATH, name + '.csv')
+    if prior_path is None:
+        prior_path = config.HMM_PRIOR_PATH
+    os.makedirs(prior_path, exist_ok=True)
+    save_path = os.path.join(prior_path, name + '.csv')
     np.savetxt(save_path, np.vstack([divs, counts]))
 
 
-def get_prior_filename(species):
-    return os.path.join(config.HMM_PRIOR_PATH, species + '.csv')
+def get_prior_filename(species, prior_path=None):
+    if prior_path is None:
+        prior_path = config.HMM_PRIOR_PATH
+    return os.path.join(prior_path, species + '.csv')

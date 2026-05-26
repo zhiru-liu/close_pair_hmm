@@ -133,7 +133,7 @@ def prepare_transfer_df(starts, ends, contig_lengths, block_size):
     for i, row in df_transfers.iterrows():
         snp_vec_start = seq_manip.block_loc_to_genome_loc(row['block_start'], contig_lengths, block_size, left=True)
         # right end is exclusive
-        snp_vec_end = seq_manip.block_loc_to_genome_loc(row['block_end'] - 1, contig_lengths, block_size, left=False)
+        snp_vec_end = seq_manip.block_loc_to_genome_loc(row['block_end'], contig_lengths, block_size, left=False)
         df_transfers.loc[i, 'snp_vec_start'] = snp_vec_start
         df_transfers.loc[i, 'snp_vec_end'] = snp_vec_end
     return df_transfers
@@ -163,8 +163,9 @@ def infer(snp_vec, contigs, model, block_size, clade_cutoff_bin=None):
         if (np.sum(blk_seq) == 0):
             # some time will have an identical contig
             # have to skip otherwise will mess up hmm
-            starts = [np.array([])]
-            ends = [np.array([])]
+            num_types = 2 if clade_cutoff_bin is not None else 1
+            starts = [np.array([], dtype=int) for _ in range(num_types)]
+            ends = [np.array([], dtype=int) for _ in range(num_types)]
             clonal_seq = blk_seq  # full sequence is clonal
         elif len(blk_seq) < config.HMM_MIN_SEQ_LEN:
             # too short to make any inference

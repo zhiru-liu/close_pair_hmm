@@ -1,0 +1,3 @@
+block_start,block_end,snp_vec_start,snp_vec_end,types,genome1,genome2,start_site,end_site,contig,overlaps_ground_truth
+19444,19446,194248.0,194277.0,0,700014724,700116468,52118,52262,JGDJ01000177,False
+19448,19453,194287.0,194347.0,0,700014724,700116468,12167,12515,JGDJ01000179,True

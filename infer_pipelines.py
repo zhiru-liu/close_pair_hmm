@@ -9,7 +9,7 @@ import cphmm.recomb_inference as ri
 import cphmm.config
 
 
-def init_hmm(species_name, genome_len, block_size):
+def init_hmm(species_name, genome_len, block_size, prior_path=None):
     # initialize the hmm with default params
     # clonal emission and transfer rate will be fitted per sequence later in the pipeline
     num_blocks = genome_len / block_size
@@ -22,8 +22,25 @@ def init_hmm(species_name, genome_len, block_size):
     clonal_emission = clonal_div * block_size
     model = hmm.ClosePairHMM(species_name=species_name, block_size=block_size,
                              transfer_rate=transfer_rate, clonal_emission=clonal_emission,
-                             transfer_length=transfer_length, n_iter=5)
+                             transfer_length=transfer_length, n_iter=5,
+                             prior_path=prior_path)
     return model 
+
+
+def annotate_transfer_reference_coordinates(transfer_dat, contigs, locs):
+    """
+    Add inclusive reference coordinates to transfer rows.
+
+    ``snp_vec_start`` is left-inclusive and ``snp_vec_end`` is right-exclusive.
+    Reference start/end sites in the output are both inclusive.
+    """
+    start_idx = transfer_dat['snp_vec_start'].astype(int)
+    end_idx = transfer_dat['snp_vec_end'].astype(int).clip(upper=len(locs)) - 1
+
+    transfer_dat['start_site'] = locs[start_idx.values]
+    transfer_dat['end_site'] = locs[end_idx.values]
+    transfer_dat['contig'] = contigs[start_idx.values]
+    return transfer_dat
 
 
 def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
@@ -44,7 +61,8 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
     :param pairs: a list of pairs of sample names to infer
     """
     model = init_hmm(datahelper.species, datahelper.genome_len, 
-                     cphmm.config.HMM_BLOCK_SIZE)
+                     cphmm.config.HMM_BLOCK_SIZE,
+                     prior_path=getattr(datahelper, 'hmm_prior_path', None))
 
     pair_dat = pd.DataFrame(columns=['genome1', 'genome2', 'naive_div', 
                                      'est_div', 'genome_len', 'clonal_len'])
@@ -70,9 +88,7 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
         transfer_dats.append(transfer_dat)
 
         # annotate the reference genome coordinates
-        transfer_dat['start_site'] = locs[transfer_dat['snp_vec_start'].astype(int).values]
-        transfer_dat['end_site'] = locs[transfer_dat['snp_vec_end'].astype(int).values]
-        transfer_dat['contig'] = contigs[transfer_dat['snp_vec_start'].astype(int).values]
+        annotate_transfer_reference_coordinates(transfer_dat, contigs, locs)
 
         processed_count += 1
         if processed_count % 100 == 0:
