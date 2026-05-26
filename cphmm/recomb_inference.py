@@ -163,8 +163,9 @@ def infer(snp_vec, contigs, model, block_size, clade_cutoff_bin=None):
         if (np.sum(blk_seq) == 0):
             # some time will have an identical contig
             # have to skip otherwise will mess up hmm
-            starts = [np.array([])]
-            ends = [np.array([])]
+            num_types = 2 if clade_cutoff_bin is not None else 1
+            starts = [np.array([], dtype=int) for _ in range(num_types)]
+            ends = [np.array([], dtype=int) for _ in range(num_types)]
             clonal_seq = blk_seq  # full sequence is clonal
         elif len(blk_seq) < config.HMM_MIN_SEQ_LEN:
             # too short to make any inference

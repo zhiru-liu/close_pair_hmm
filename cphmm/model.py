@@ -1,7 +1,7 @@
 import numpy as np
 import os
 from scipy import special
-from hmmlearn import _hmmc
+import cphmm.hmm_backend as hmm_backend
 from cphmm.utils import log_normalize, log_mask_zero
 import cphmm.config as config
 
@@ -12,12 +12,13 @@ class ClosePairHMM:
                  transfer_emissions=np.array([0.1]),
                  transfer_rate=1e-2, clonal_emission=1e-3,
                  transfer_length=5e2, transition_prior=None,
-                 n_iter=5, min_clonal_emission=1e-6):
+                 n_iter=5, min_clonal_emission=1e-6,
+                 prior_path=None):
 
         # init emission probabilities
         if species_name is not None:
             self.transfer_emissions, self.transition_prior = self._get_empirical_emissions(
-                species_name, block_size)
+                species_name, block_size, prior_path=prior_path)
         else:
             self._init_emissions_manual(transfer_emissions, transition_prior)
         self.clonal_emission = clonal_emission
@@ -40,8 +41,10 @@ class ClosePairHMM:
 
         self.n_iter = n_iter
 
-    def _get_empirical_emissions(self, species_name, block_size):
-        path = os.path.join(config.HMM_PRIOR_PATH, species_name + '.csv')
+    def _get_empirical_emissions(self, species_name, block_size, prior_path=None):
+        if prior_path is None:
+            prior_path = config.HMM_PRIOR_PATH
+        path = os.path.join(prior_path, species_name + '.csv')
         if not os.path.exists(path):
             raise ValueError("No empirical data found for {}".format(species_name))
         dat = np.loadtxt(path)
@@ -163,54 +166,32 @@ class ClosePairHMM:
         return logprob, state_sequence
 
     def _do_forward_pass(self, framelogprob):
-        n_samples, n_components = framelogprob.shape
-        # archived numpy version
-        # fwdlattice = _routines._forward(n_samples, n_components,
-        #                log_mask_zero(self.startprob_),
-        #                log_mask_zero(self.transmat_),
-        #                framelogprob)
-
-        fwdlattice = np.zeros((n_samples, n_components))
-        _hmmc._forward(n_samples, n_components,
-                       log_mask_zero(self.startprob_),
-                       log_mask_zero(self.transmat_),
-                       framelogprob, fwdlattice)
-
-        with np.errstate(under="ignore"):
-            return special.logsumexp(fwdlattice[-1]), fwdlattice
+        return hmm_backend.forward_log(
+            log_mask_zero(self.startprob_),
+            log_mask_zero(self.transmat_),
+            framelogprob,
+        )
 
     def _do_backward_pass(self, framelogprob):
-        n_samples, n_components = framelogprob.shape
-        bwdlattice = np.zeros((n_samples, n_components))
-        _hmmc._backward(n_samples, n_components,
-                        log_mask_zero(self.startprob_),
-                        log_mask_zero(self.transmat_),
-                        framelogprob, bwdlattice)
-        # bwdlattice = _routines._backward(n_samples, n_components,
-        #                 log_mask_zero(self.startprob_),
-        #                 log_mask_zero(self.transmat_),
-        #                 framelogprob)
-        
-        return bwdlattice
+        return hmm_backend.backward_log(
+            log_mask_zero(self.transmat_),
+            framelogprob,
+        )
 
     def _do_viterbi_pass(self, framelogprob):
-        n_samples, n_components = framelogprob.shape
-        # logprob, state_sequence = _routines._viterbi(
-        #     n_samples, n_components, log_mask_zero(self.startprob_),
-        #     log_mask_zero(self.transmat_), framelogprob)
-        state_sequence, logprob = _hmmc._viterbi(
-                n_samples, n_components, log_mask_zero(self.startprob_),
-                log_mask_zero(self.transmat_), framelogprob)
-        return logprob, state_sequence
+        return hmm_backend.viterbi_log(
+            log_mask_zero(self.startprob_),
+            log_mask_zero(self.transmat_),
+            framelogprob,
+        )
 
     def _do_forward_backward(self, fwdlattice, bwdlattice, framelogprob):
-        n_samples, n_components = framelogprob.shape
-        log_xi_sum = np.full((n_components, n_components), -np.inf)
-        _hmmc._compute_log_xi_sum(n_samples, n_components, fwdlattice,
-                                  log_mask_zero(self.transmat_),
-                                  bwdlattice, framelogprob,
-                                  log_xi_sum)
-        return log_xi_sum
+        return hmm_backend.compute_log_xi_sum(
+            fwdlattice,
+            log_mask_zero(self.transmat_),
+            bwdlattice,
+            framelogprob,
+        )
 
     def _compute_posteriors(self, fwdlattice, bwdlattice):
         # gamma is guaranteed to be correctly normalized by logprob at
