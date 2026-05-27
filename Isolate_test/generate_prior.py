@@ -29,6 +29,7 @@ import cphmm.config
 import cphmm.prior
 from isolate_datahelper import (
     ACCESSIONS,
+    DIVERGED_PAIR_MAX_IDENTICAL_FRACTION,
     HMM_PRIOR_PATH,
     DataHelper_Isolate,
 )
@@ -55,6 +56,17 @@ def parse_args() -> argparse.Namespace:
         "--num-bins", type=int, default=cphmm.config.HMM_PRIOR_BINS
     )
     parser.add_argument("--clade-cutoff", type=float, default=0.03)
+    parser.add_argument(
+        "--max-pair-identical-fraction",
+        type=float,
+        default=DIVERGED_PAIR_MAX_IDENTICAL_FRACTION,
+        help=(
+            "Only pairs with identical_fraction <= this threshold are used "
+            "for prior block sampling. Lower values give a cleaner "
+            "between-genome prior but require more diverged pairs to exist. "
+            "Default: %(default)s."
+        ),
+    )
     parser.add_argument("--prior-dir", default=str(HMM_PRIOR_PATH))
     parser.add_argument(
         "--save-samples",
@@ -94,6 +106,7 @@ def generate_one(
     seed: int,
     save_samples: bool,
     overwrite: bool,
+    max_pair_identical_fraction: float = DIVERGED_PAIR_MAX_IDENTICAL_FRACTION,
 ) -> Path:
     prior_path = cphmm.prior.get_prior_filename(
         accession, prior_path=str(prior_dir)
@@ -103,10 +116,16 @@ def generate_one(
         return Path(prior_path)
 
     print(f"[{accession}] loading SNV helper at {time.ctime()}")
-    datahelper = DataHelper_Isolate(accession)
+    datahelper = DataHelper_Isolate(
+        accession,
+        diverged_pair_max_identical_fraction=max_pair_identical_fraction,
+    )
+    n_diverged = len(datahelper.get_diverged_pairs())
     print(
         f"[{accession}] {len(datahelper.sample_names)} samples, "
-        f"{datahelper.genome_len} 4D core sites"
+        f"{datahelper.genome_len} 4D core sites, "
+        f"{n_diverged} diverged pairs available for prior sampling "
+        f"(identical_fraction <= {max_pair_identical_fraction})"
     )
 
     print(
@@ -163,6 +182,7 @@ def main() -> None:
             seed=args.seed,
             save_samples=args.save_samples,
             overwrite=args.overwrite,
+            max_pair_identical_fraction=args.max_pair_identical_fraction,
         )
 
 

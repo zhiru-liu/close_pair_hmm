@@ -27,6 +27,13 @@ HMM_PRIOR_PATH = Path(__file__).resolve().parent / "priors"
 CLONAL_FRAC_CUTOFF = 0.5
 IDENTICAL_FRACTION_BLOCK_SIZE = 1000
 
+# Pairs whose identical-block fraction is at most this threshold are
+# considered "fully recombined relative to each other" and are the only pairs
+# we sample from when building the per-species transfer-divergence prior.
+# Sampling from arbitrary pairs would oversample clonal regions in species
+# with a near-clonal cluster (e.g. S. enterica), biasing the prior toward 0.
+DIVERGED_PAIR_MAX_IDENTICAL_FRACTION = 0.05
+
 ACCESSIONS = (
     "MGYG-HGUT-01337",
     "MGYG-HGUT-01346",
@@ -74,6 +81,7 @@ class DataHelper_Isolate:
         *,
         clonal_frac_cutoff: float = CLONAL_FRAC_CUTOFF,
         identical_fraction_block_size: int = IDENTICAL_FRACTION_BLOCK_SIZE,
+        diverged_pair_max_identical_fraction: float = DIVERGED_PAIR_MAX_IDENTICAL_FRACTION,
         max_pairs: int | None = None,
         hmm_prior_path: Path | str = HMM_PRIOR_PATH,
     ) -> None:
@@ -87,6 +95,9 @@ class DataHelper_Isolate:
         self.species_name = accession
         self.clonal_frac_cutoff = float(clonal_frac_cutoff)
         self.identical_fraction_block_size = int(identical_fraction_block_size)
+        self.diverged_pair_max_identical_fraction = float(
+            diverged_pair_max_identical_fraction
+        )
         self.hmm_prior_path = str(hmm_prior_path)
 
         IsolateSNVHelper = load_isolate_snv_helper()
@@ -112,6 +123,9 @@ class DataHelper_Isolate:
 
         self.missing_pairs: list[tuple[str, str]] = []
         self.close_pairs = self._load_close_pairs(max_pairs=max_pairs)
+        # Lazily populated by sample_prior_blocks via _load_diverged_pairs.
+        self._diverged_pairs: list[tuple[str, str]] | None = None
+        self._diverged_pair_index: np.ndarray | None = None
 
     # ---- close-pair selection ------------------------------------------------
 
@@ -137,6 +151,57 @@ class DataHelper_Isolate:
     def get_close_pairs(self) -> list[tuple[str, str]]:
         return self.close_pairs
 
+    # ---- diverged-pair pool for prior construction --------------------------
+
+    def _load_diverged_pairs(self) -> list[tuple[str, str]]:
+        """Load the pool of "fully recombined" pairs for prior sampling.
+
+        Prefers ``helper.get_diverged_pairs(...)`` if the helper exposes it
+        (see dNdS revision handoff). Falls back to filtering the cached
+        ``identical_fraction`` DataFrame directly so this works before the
+        helper-side API lands.
+        """
+        cutoff = self.diverged_pair_max_identical_fraction
+        helper_method = getattr(self.helper, "get_diverged_pairs", None)
+        if callable(helper_method):
+            pairs = helper_method(
+                max_identical_fraction=cutoff,
+                block_size=self.identical_fraction_block_size,
+                site_class="4D",
+            )
+        else:
+            df = self.helper.identical_fraction
+            mask = df["identical_fraction"] <= cutoff
+            pairs = [
+                (str(a), str(b))
+                for a, b in df.loc[mask, ["sample_1", "sample_2"]].itertuples(
+                    index=False
+                )
+            ]
+
+        # Drop pairs whose sample names are absent from helper.samples
+        # (paranoia; should never trigger for in-house artifacts).
+        kept: list[tuple[str, str]] = []
+        for a, b in pairs:
+            if a in self.sample_to_index and b in self.sample_to_index:
+                kept.append((a, b))
+        if not kept:
+            raise RuntimeError(
+                f"{self.accession}: no pairs with identical_fraction <= "
+                f"{cutoff} are available for prior block sampling. "
+                "Either loosen --max-pair-identical-fraction or check that "
+                "the identical_fraction artifact was generated correctly."
+            )
+        return kept
+
+    def get_diverged_pairs(self) -> list[tuple[str, str]]:
+        if self._diverged_pairs is None:
+            self._diverged_pairs = self._load_diverged_pairs()
+            self._diverged_pair_index = np.arange(
+                len(self._diverged_pairs), dtype=np.int64
+            )
+        return self._diverged_pairs
+
     # ---- CP-HMM inference inputs --------------------------------------------
 
     def get_pair_snp_info(self, pair):
@@ -156,8 +221,15 @@ class DataHelper_Isolate:
         return snp_vec
 
     def get_random_pair(self):
-        idxs = np.random.choice(len(self.sample_names), size=2, replace=False)
-        return self.sample_names[idxs[0]], self.sample_names[idxs[1]]
+        """Return a random "fully recombined" pair for prior sampling.
+
+        Drawn from the cached diverged-pair pool, not uniformly over all
+        samples — uniform sampling oversamples clonal regions in species with
+        a near-clonal cluster (e.g. S. enterica) and biases the prior.
+        """
+        diverged = self.get_diverged_pairs()
+        idx = np.random.randint(0, len(diverged))
+        return diverged[idx]
 
     def sample_prior_blocks(
         self,
@@ -168,34 +240,28 @@ class DataHelper_Isolate:
         """
         Vectorized prior-block sampler.
 
-        Mirrors ``Bf_test.bf_datahelper.DataHelper_Bf.sample_prior_blocks``.
-        Groups random pairs so each pair's SNP vector is only built once.
+        Only draws blocks from "fully recombined" pairs (identical_fraction
+        <= self.diverged_pair_max_identical_fraction). For each output sample
+        we pick a uniformly random pair from that pool, then a uniformly
+        random block within the pair's covered 4D SNP vector. Pairs are
+        grouped so each pair's SNP vector is built at most once.
         """
         rng = np.random.default_rng(random_state)
         local_divs = np.empty(num_samples)
         genome_divs = np.empty(num_samples)
 
-        n_samples_available = len(self.sample_names)
-        if n_samples_available < 2:
-            raise ValueError(
-                f"{self.accession}: need at least 2 samples for prior sampling; "
-                f"helper.samples has {n_samples_available}."
-            )
+        diverged_pairs = self.get_diverged_pairs()
+        n_pairs_available = len(diverged_pairs)
 
-        idx1s = rng.integers(0, n_samples_available, size=num_samples)
-        idx2s = rng.integers(0, n_samples_available - 1, size=num_samples)
-        idx2s += idx2s >= idx1s
-
-        grouped: dict[tuple[int, int], list[int]] = {}
-        for out_idx, pair_idxs in enumerate(zip(idx1s, idx2s)):
-            grouped.setdefault(tuple(sorted(pair_idxs)), []).append(out_idx)
+        # Pick output -> pair-index assignments.
+        pair_choices = rng.integers(0, n_pairs_available, size=num_samples)
+        grouped: dict[int, list[int]] = {}
+        for out_idx, pair_idx in enumerate(pair_choices):
+            grouped.setdefault(int(pair_idx), []).append(out_idx)
 
         pending: list[int] = []
-        for pair_idxs, out_idxs in grouped.items():
-            pair = (
-                self.sample_names[pair_idxs[0]],
-                self.sample_names[pair_idxs[1]],
-            )
+        for pair_idx, out_idxs in grouped.items():
+            pair = diverged_pairs[pair_idx]
             snp_vec = self.get_snp_vector(pair)
             if len(snp_vec) < block_size:
                 pending.extend(out_idxs)
@@ -217,14 +283,14 @@ class DataHelper_Isolate:
             attempts += 1
             if attempts > max_attempts:
                 raise ValueError(
-                    f"{self.accession}: unable to sample enough covered genome "
-                    f"blocks for prior generation (block_size={block_size})."
+                    f"{self.accession}: unable to sample enough covered "
+                    f"genome blocks from {n_pairs_available} diverged pairs "
+                    f"(block_size={block_size}). Consider loosening "
+                    "diverged_pair_max_identical_fraction."
                 )
             out_idx = pending.pop()
-            idx1, idx2 = rng.choice(
-                n_samples_available, size=2, replace=False
-            )
-            pair = (self.sample_names[idx1], self.sample_names[idx2])
+            pair_idx = int(rng.integers(0, n_pairs_available))
+            pair = diverged_pairs[pair_idx]
             snp_vec = self.get_snp_vector(pair)
             if len(snp_vec) < block_size:
                 pending.append(out_idx)
