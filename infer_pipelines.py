@@ -43,7 +43,7 @@ def annotate_transfer_reference_coordinates(transfer_dat, contigs, locs):
     return transfer_dat
 
 
-def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
+def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_iter=3):
     """
     Infer the clonal divergence and transfer events for all close pairs in the datahelper
 
@@ -73,7 +73,9 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None):
         
         try:
             clonal_div, genome_len, clonal_len, transfer_dat = \
-                ri.infer(snp_vec, contigs, model, cphmm.config.HMM_BLOCK_SIZE, clade_cutoff_bin=clade_cutoff_bin)
+                ri.infer(snp_vec, contigs, model, cphmm.config.HMM_BLOCK_SIZE,
+                         clade_cutoff_bin=clade_cutoff_bin,
+                         iterative=iterative, n_iter=n_iter)
         except:
             e = sys.exc_info()[0]
             tb = traceback.format_exc()

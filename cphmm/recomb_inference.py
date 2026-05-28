@@ -139,16 +139,12 @@ def prepare_transfer_df(starts, ends, contig_lengths, block_size):
     return df_transfers
     
 
-def infer(snp_vec, contigs, model, block_size, clade_cutoff_bin=None):
-    """
-    Accumulate the results of above function for all contigs
-    :param snp_vec: The full snp vector for a given pair of QP samples
-    :param contigs: Array of same length as snp_vec, containing the contig name of each site
-    :param model: CP-HMM model
-    :param block_size: size of the block
-    :param clade_cutoff_bin: For determining whether transfer is within clade or between clade; see prior estimation scripts
-    :return: tuple of starts and ends of transfers (in blocks), and # transferred snps, # clonal snps, genome length and
-    clonal region length
+def _single_pass(snp_vec, contigs, model, block_size, clade_cutoff_bin=None):
+    """One full pass of per-contig fit+decode across all contigs.
+
+    Returns the raw per-contig segment lists plus the pooled clonal block
+    sequence, which the iterative path needs to re-estimate the clonal
+    emission rate before the next pass.
     """
     all_starts = []
     all_ends = []
@@ -183,16 +179,90 @@ def infer(snp_vec, contigs, model, block_size, clade_cutoff_bin=None):
         model.reinit_emission_and_transfer_rates()
         index_offset += len(blk_seq)
 
+    full_clonal_seq = np.concatenate(clonal_seqs) if clonal_seqs else np.array([])
+    return all_starts, all_ends, full_clonal_seq
+
+
+def _bernoulli_clonal_emission_from_seq(clonal_seq, min_emission):
+    """Bernoulli ML estimator for the clonal-state emission.
+
+    ``clonal_seq`` is the pooled block-sum SNP counts in regions the HMM just
+    decoded as clonal. The model treats clonal emission as the probability
+    that a block has any SNP (matches ``blk_seq_fit = (blk_seq > 0)``), so the
+    natural estimator is the mean of that binary indicator over clonal blocks.
+
+    Floored at ``min_emission`` so the rate never collapses to zero on an
+    accidentally SNP-free clonal call (legacy used the same safety net).
+    """
+    if len(clonal_seq) == 0:
+        return min_emission
+    indicators = (np.asarray(clonal_seq).reshape(-1) > 0).astype(float)
+    rate = float(indicators.mean())
+    if rate < min_emission:
+        rate = min_emission
+    return rate
+
+
+def infer(snp_vec, contigs, model, block_size, clade_cutoff_bin=None,
+          iterative=False, n_iter=3):
+    """
+    Accumulate per-contig HMM inference into a per-pair recombination summary.
+
+    :param snp_vec: The full snp vector for a given pair of QP samples
+    :param contigs: Array of same length as snp_vec, containing the contig name of each site
+    :param model: CP-HMM model
+    :param block_size: size of the block
+    :param clade_cutoff_bin: For determining whether transfer is within clade or between clade; see prior estimation scripts
+    :param iterative: When True, run ``n_iter`` outer passes. After each pass,
+        re-estimate the clonal-state emission from the pooled clonal blocks
+        that the HMM itself called clonal, then refit. Mirrors the legacy
+        ``_fit_and_count_transfers_iterative`` from microbiome_evolution but
+        pools across contigs (per-pair) rather than iterating per-contig.
+        The model's ``init_clonal_emission`` is restored before returning.
+    :param n_iter: Number of outer iterations when ``iterative=True``. Legacy
+        default was 3.
+    :return: tuple of starts and ends of transfers (in blocks), and # transferred snps, # clonal snps, genome length and
+    clonal region length
+    """
+    saved_init = model.init_clonal_emission
+    try:
+        if iterative:
+            for _ in range(n_iter):
+                all_starts, all_ends, full_clonal_seq = _single_pass(
+                    snp_vec, contigs, model, block_size,
+                    clade_cutoff_bin=clade_cutoff_bin,
+                )
+                new_emission = _bernoulli_clonal_emission_from_seq(
+                    full_clonal_seq, model.min_clonal_emissions
+                )
+                # Update the value reinit_emission_and_transfer_rates() resets
+                # to, so the next outer pass starts EM from the new emission.
+                model.init_clonal_emission = new_emission
+                model.reinit_emission_and_transfer_rates()
+        else:
+            all_starts, all_ends, full_clonal_seq = _single_pass(
+                snp_vec, contigs, model, block_size,
+                clade_cutoff_bin=clade_cutoff_bin,
+            )
+    finally:
+        model.init_clonal_emission = saved_init
+        model.reinit_emission_and_transfer_rates()
+
     # group transfers of the same type together over contigs
-    num_types = len(all_starts[0])
+    num_types = len(all_starts[0]) if all_starts else (
+        2 if clade_cutoff_bin is not None else 1
+    )
     starts = []
     ends = []
     for i in range(num_types):
-        starts.append(np.concatenate([s[i] for s in all_starts]))
-        ends.append(np.concatenate([s[i] for s in all_ends]))
+        if all_starts:
+            starts.append(np.concatenate([s[i] for s in all_starts]))
+            ends.append(np.concatenate([s[i] for s in all_ends]))
+        else:
+            starts.append(np.array([], dtype=int))
+            ends.append(np.array([], dtype=int))
 
-    full_clonal_seq = np.concatenate(clonal_seqs)
-    clonal_div = estimate_clonal_divergence(full_clonal_seq, block_size)
+    clonal_div = estimate_clonal_divergence(full_clonal_seq, block_size) if len(full_clonal_seq) else (0.0, 0.0)
     total_clonal_len = len(full_clonal_seq) * block_size
 
     contig_lengths = _get_contig_lengths(contigs)

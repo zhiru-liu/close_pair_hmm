@@ -47,7 +47,8 @@ from isolate_datahelper import (
 _WORKER_STATE: dict = {}
 
 
-def _worker_init(accession: str, prior_dir: str, clade_cutoff_bin: int) -> None:
+def _worker_init(accession: str, prior_dir: str, clade_cutoff_bin: int,
+                 iterative: bool, n_iter: int) -> None:
     """Initializer for ``multiprocessing.Pool`` workers.
 
     Each worker loads the SNV helper once and constructs an HMM model with the
@@ -72,6 +73,8 @@ def _worker_init(accession: str, prior_dir: str, clade_cutoff_bin: int) -> None:
     _WORKER_STATE["dh"] = dh
     _WORKER_STATE["model"] = model
     _WORKER_STATE["clade_cutoff_bin"] = clade_cutoff_bin
+    _WORKER_STATE["iterative"] = iterative
+    _WORKER_STATE["n_iter"] = n_iter
 
 
 def _worker_infer_pair(pair):
@@ -90,6 +93,8 @@ def _worker_infer_pair(pair):
         model,
         cphmm.config.HMM_BLOCK_SIZE,
         clade_cutoff_bin=clade_cutoff_bin,
+        iterative=_WORKER_STATE["iterative"],
+        n_iter=_WORKER_STATE["n_iter"],
     )
     naive_div, est_div = clonal_div
     transfer_dat = transfer_dat.copy()
@@ -107,7 +112,8 @@ def _worker_infer_pair(pair):
     }
 
 
-def _infer_pairs_parallel(accession, close_pairs, prior_dir, clade_cutoff_bin, workers):
+def _infer_pairs_parallel(accession, close_pairs, prior_dir, clade_cutoff_bin,
+                          workers, iterative=False, n_iter=3):
     """Run ``infer_pairs`` across ``workers`` processes.
 
     Returns ``(pair_dat, transfer_dat)`` matching the serial path's schema.
@@ -121,7 +127,7 @@ def _infer_pairs_parallel(accession, close_pairs, prior_dir, clade_cutoff_bin, w
     with ctx.Pool(
         workers,
         initializer=_worker_init,
-        initargs=(accession, str(prior_dir), clade_cutoff_bin),
+        initargs=(accession, str(prior_dir), clade_cutoff_bin, iterative, n_iter),
     ) as pool:
         chunksize = max(1, len(close_pairs) // (workers * 8))
         completed = 0
@@ -222,6 +228,24 @@ def parse_args() -> argparse.Namespace:
             "single-threaded (e.g. for debugging). Default: 4."
         ),
     )
+    parser.add_argument(
+        "--iterative",
+        action="store_true",
+        help=(
+            "Run iterative clonal-emission refinement (legacy "
+            "_fit_and_count_transfers_iterative). Each outer iteration "
+            "refits all contigs with a clonal-emission rate re-estimated "
+            "from the previous pass's pooled clonal blocks. Output "
+            "filenames gain an '__iterative' suffix so iterative and "
+            "non-iterative results co-exist."
+        ),
+    )
+    parser.add_argument(
+        "--iterative-iters",
+        type=int,
+        default=3,
+        help="Number of outer iterations when --iterative is set. Default: 3.",
+    )
     return parser.parse_args()
 
 
@@ -271,6 +295,8 @@ def infer_one(
     max_pairs: int | None,
     ensure_prior: bool,
     workers: int = 1,
+    iterative: bool = False,
+    n_iter: int = 3,
 ) -> tuple[Path, Path]:
     prior_path = prior_dir / f"{accession}.csv"
     if not prior_path.exists():
@@ -299,8 +325,9 @@ def infer_one(
 
     start_time = time.time()
     use_parallel = workers > 1 and len(close_pairs) > 1
+    mode_label = "iterative" if iterative else "single-pass"
     print(
-        f"[{accession}] starting inference at {time.ctime()} "
+        f"[{accession}] starting {mode_label} inference at {time.ctime()} "
         f"({'parallel, workers=' + str(workers) if use_parallel else 'serial'})"
     )
     if use_parallel:
@@ -310,19 +337,24 @@ def infer_one(
             prior_dir=prior_dir,
             clade_cutoff_bin=clade_cutoff_bin,
             workers=workers,
+            iterative=iterative,
+            n_iter=n_iter,
         )
     else:
         pair_dat, transfer_dat = infer_pipelines.infer_pairs(
             datahelper,
             close_pairs,
             clade_cutoff_bin=clade_cutoff_bin,
+            iterative=iterative,
+            n_iter=n_iter,
         )
     elapsed = time.time() - start_time
     print(f"[{accession}] inference complete at {time.ctime()}, took {elapsed:.1f}s")
 
-    suffix = (
+    base_suffix = (
         "all_pairs" if max_pairs is None else f"first_{max_pairs}_pairs"
     )
+    suffix = f"{base_suffix}__iterative" if iterative else base_suffix
     results_dir.mkdir(parents=True, exist_ok=True)
     pair_path = results_dir / f"{accession}__{suffix}__inference_summary.csv"
     transfer_path = results_dir / f"{accession}__{suffix}__transfer_summary.csv"
@@ -351,6 +383,8 @@ def main() -> None:
                 max_pairs=args.max_pairs,
                 ensure_prior=args.ensure_prior,
                 workers=args.workers,
+                iterative=args.iterative,
+                n_iter=args.iterative_iters,
             )
         except Exception as exc:
             if not args.continue_on_error:
