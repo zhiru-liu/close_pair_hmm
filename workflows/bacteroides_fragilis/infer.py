@@ -22,8 +22,8 @@ if str(THIS_DIR) not in sys.path:
     sys.path.insert(0, str(THIS_DIR))
 
 import cphmm.infer_pipelines as infer_pipelines
+from cphmm.io.liugood2024_qp.published_comparison import write_comparison_files
 from datahelper import DataHelper_Bf, SPECIES
-from compare_to_ground_truth import write_comparison_files
 
 
 def parse_args():

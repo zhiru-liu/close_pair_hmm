@@ -172,9 +172,12 @@ and bundled priors are built from — are released here:
   README); follow that link to download the per-species catalogues.
 
 These let you reproduce the close-pair inference end to end and regenerate priors for the
-paper's species. The worked example in
-[workflows/bacteroides_fragilis/](workflows/bacteroides_fragilis/) runs this end to end
-for one species, downloading a compact catalog subset from a GitHub Release on first run.
+paper's species. Two worked examples use them:
+[workflows/bacteroides_fragilis/](workflows/bacteroides_fragilis/) runs the pipeline for one
+species clone-and-run (a compact catalog subset ships in the repo), and
+[workflows/liugood2024_qp/](workflows/liugood2024_qp/) reproduces the full 29-species QP
+analysis and verifies it against the published supplementary table (point it at a local copy
+of the catalog).
 
 ### Figure-generation scripts (original Python 2 analysis code)
 
@@ -203,11 +206,12 @@ cphmm/                  Installable package
   datahelper.py         ClosePairDataHelper protocol + BaseClosePairDataHelper mixin
   config.py             Block size, min sequence length, default prior path, # bins
   io/                   Optional SNV-catalog readers ([workflows] extra)
-    liugood2024_qp/     Reader for the LiuGood2024 QP feather catalog
+    liugood2024_qp/     LiuGood2024 QP catalog reader + published-table comparison
   priors/               Bundled LiuGood2024 reference priors (+ README on derivation)
 
 workflows/              Worked examples (not part of the installed package)
-  bacteroides_fragilis/ End-to-end, reproducible single-species example
+  bacteroides_fragilis/ End-to-end, reproducible single-species example (committed data)
+  liugood2024_qp/       Full 29-species QP reproduction vs the published table (local data)
 
 tests/                  Unit tests (run: python tests/test_recomb_coordinates.py)
 docs/                   Concepts, usage, and architecture guides

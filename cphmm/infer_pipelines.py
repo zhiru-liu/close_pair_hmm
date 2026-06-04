@@ -9,13 +9,12 @@ import cphmm.recomb_inference as ri
 import cphmm.config
 
 
-def init_hmm(species_name, genome_len, block_size, prior_path=None):
+def init_hmm(species_name, genome_len, block_size, prior_path=None,
+             transfer_counts=20., clonal_div=5e-5, transfer_length=1000.):
     # initialize the hmm with default params
     # clonal emission and transfer rate will be fitted per sequence later in the pipeline
+    # transfer_length is the expected transferred-segment length in base pairs.
     num_blocks = genome_len / block_size
-    transfer_counts = 20.
-    clonal_div = 5e-5
-    transfer_length = 1000.  # default 1000
 
     transfer_rate = transfer_counts / num_blocks
     transfer_length = transfer_length / block_size
@@ -24,7 +23,7 @@ def init_hmm(species_name, genome_len, block_size, prior_path=None):
                              transfer_rate=transfer_rate, clonal_emission=clonal_emission,
                              transfer_length=transfer_length, n_iter=5,
                              prior_path=prior_path)
-    return model 
+    return model
 
 
 def annotate_transfer_reference_coordinates(transfer_dat, contigs, locs):
@@ -43,7 +42,8 @@ def annotate_transfer_reference_coordinates(transfer_dat, contigs, locs):
     return transfer_dat
 
 
-def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_iter=3):
+def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_iter=3,
+                transfer_length=1000.):
     """
     Infer the clonal divergence and transfer events for all close pairs in the datahelper
 
@@ -60,9 +60,10 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_ite
     :param datahelper: an object with the above methods / attributes
     :param pairs: a list of pairs of sample names to infer
     """
-    model = init_hmm(datahelper.species, datahelper.genome_len, 
+    model = init_hmm(datahelper.species, datahelper.genome_len,
                      cphmm.config.HMM_BLOCK_SIZE,
-                     prior_path=getattr(datahelper, 'hmm_prior_path', None))
+                     prior_path=getattr(datahelper, 'hmm_prior_path', None),
+                     transfer_length=transfer_length)
 
     pair_dat = pd.DataFrame(columns=['genome1', 'genome2', 'naive_div', 
                                      'est_div', 'genome_len', 'clonal_len'])

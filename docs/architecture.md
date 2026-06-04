@@ -25,7 +25,11 @@ catalog construction  →  canonical SNV tables  →  SNV-table reader  →  Dat
    on-disk catalog format and exposes the matrices/masks an adapter needs. Currently
    `cphmm.io.liugood2024_qp` (the LiuGood2024 QP feather catalog).
 4. **Workflows** — `workflows/<campaign>/` glue: a thin DataHelper subclass + an `infer.py`
-   entry point. See `workflows/bacteroides_fragilis/`.
+   entry point. Two exist: `workflows/bacteroides_fragilis/` (single-species, committed
+   catalog subset, clone-and-run) and `workflows/liugood2024_qp/` (the full Liu & Good 2024
+   QP reproduction across the 29 published species, verified against the supplementary table;
+   points at a local catalog). The shared LiuGood2024 comparison logic lives in
+   `cphmm.io.liugood2024_qp.published_comparison`.
 
 ## The canonical SNV-table schema (integration contract)
 
