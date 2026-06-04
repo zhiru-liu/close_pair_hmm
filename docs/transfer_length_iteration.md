@@ -55,13 +55,12 @@ will be biased short.
   `clade_cutoff_bin = HMM_PRIOR_BINS` (40). Single-clade priors have 40 columns →
   `clade_cutoff_bin = None`. (`reproduce.py::prior_clade_settings` already does this.)
 
-## Suggested placement
+## Placement
 
-Cleanest as a new mode in `workflows/liugood2024_qp/reproduce.py` (a per-species outer loop
-that re-calls `infer_pairs` until convergence), e.g. `--transfer-length iterative`. It is
-**orthogonal to** `cphmm`'s existing `iterative` flag, which refines the **clonal emission**
-rate — a different quantity; the two can compose. Alternatively, add the loop inside
-`cphmm.infer_pipelines` if it should be reusable beyond this workflow.
+Add it as a new mode in `workflows/liugood2024_qp/reproduce.py` (a per-species outer loop
+that re-calls `infer_pairs` until convergence), e.g. `--transfer-length iterative`. Keep it
+in the workflow, not in `cphmm` core. It is **orthogonal to** `cphmm`'s existing `iterative`
+flag, which refines the **clonal emission** rate — a different quantity; the two can compose.
 
 ## Verification
 
