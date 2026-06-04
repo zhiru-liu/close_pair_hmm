@@ -53,10 +53,12 @@ full [LiuGood-2024-SNVs](https://github.com/zhiru-liu/LiuGood-2024-SNVs) repo an
 
 ### Maintainer: regenerating the committed catalog
 
-`export_tarball.py` rebuilds `data/bf_data.tar.gz` from the full catalog (needs the
-`/Volumes` data) and prints its size/sha256; commit the regenerated file:
+`export_tarball.py` rebuilds `data/bf_data.tar.gz` from the full SNV catalog (requires
+local access to the source catalog + reference genome) and prints its size/sha256;
+commit the regenerated file:
 
 ```bash
-python workflows/bacteroides_fragilis/export_tarball.py
+python workflows/bacteroides_fragilis/export_tarball.py \
+    --snv-src <snv-catalog-dir> --ref-src <reference-genome-dir>
 git add workflows/bacteroides_fragilis/data/bf_data.tar.gz
 ```

@@ -7,9 +7,11 @@ the 4D annotation), packs them into ``data/bf_data.tar.gz`` (the committed asset
 prints the size + sha256.
 
     python workflows/bacteroides_fragilis/export_tarball.py \
-        --snv-src /Volumes/Botein/GarudGood2019_snvs/snvs_feather \
-        --ref-src /Volumes/Botein/GarudGood2019_snvs/midas_db_data/rep_genomes
+        --snv-src <snv-catalog-dir> \
+        --ref-src <reference-genome-dir>
 
+where ``<snv-catalog-dir>/<species>/`` holds the ``*.feather`` tables and
+``<reference-genome-dir>/<species>/`` holds ``genome.fna.gz`` + ``genome.features.gz``.
 Then commit the regenerated ``data/bf_data.tar.gz``.
 """
 from __future__ import annotations
@@ -24,18 +26,15 @@ import tempfile
 SPECIES = "Bacteroides_fragilis_54507"
 THIS_DIR = Path(__file__).resolve().parent
 
-DEFAULT_SNV_SRC = Path("/Volumes/Botein/GarudGood2019_snvs/snvs_feather")
-DEFAULT_REF_SRC = Path("/Volumes/Botein/GarudGood2019_snvs/midas_db_data/rep_genomes")
-
 SNV_FILES = ["snv_catalog.feather", "coverage.feather", "biallelic_snvs.feather"]
 REF_FILES = ["genome.fna.gz", "genome.features.gz"]
 
 
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--snv-src", type=Path, default=DEFAULT_SNV_SRC,
+    p.add_argument("--snv-src", type=Path, required=True,
                    help="Dir containing <species>/<*.feather>.")
-    p.add_argument("--ref-src", type=Path, default=DEFAULT_REF_SRC,
+    p.add_argument("--ref-src", type=Path, required=True,
                    help="Dir containing <species>/{genome.fna.gz,genome.features.gz}.")
     p.add_argument("--out", type=Path, default=THIS_DIR / "data" / "bf_data.tar.gz")
     return p.parse_args()

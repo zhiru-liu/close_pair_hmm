@@ -49,10 +49,9 @@ pip install -e ".[workflows]"
 ```
 
 The CP-HMM uses an internal NumPy/SciPy log-space HMM backend with
-[Numba](https://numba.pydata.org/)-JIT'd forward/backward/Viterbi kernels — it does
-**not** require `hmmlearn`. The first inference call in a fresh process pays a
-one-time JIT-compilation cost (~1–2 s); compiled kernels are cached to disk and reused
-afterwards.
+[Numba](https://numba.pydata.org/)-JIT'd forward/backward/Viterbi kernels. The first
+inference call in a fresh process pays a one-time JIT-compilation cost (~1–2 s);
+compiled kernels are cached to disk and reused afterwards.
 
 Core runtime dependencies: `numpy`, `scipy`, `pandas`, `numba`.
 
