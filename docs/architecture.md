@@ -65,3 +65,6 @@ this schema as the contract is what lets one reader serve multiple campaigns.
   (`dNdS_dynamics_revision`'s `IsolateCPHMMDataHelper`) already implements this exact
   protocol with a duplicated `sample_prior_blocks`; it can inherit
   `BaseClosePairDataHelper` to drop that duplication.
+- **Per-species iterative transfer-length estimation** — the QP reproduction currently uses
+  a fixed transfer length (the paper refined it iteratively per species). See
+  [transfer_length_iteration.md](transfer_length_iteration.md) for the full porting spec.

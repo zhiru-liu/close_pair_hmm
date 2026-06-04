@@ -66,6 +66,8 @@ Two distinct refinements are easy to conflate: cphmm's `--iterative` flag refine
 transfer-length iteration is not ported here — reproducing it exactly would re-estimate the
 mean transfer length from each pass and re-run. With the default 1000 the remaining
 difference is mostly in transfer-boundary precision, not in which transfers are detected.
+A complete porting spec (algorithm, the merge/filter caveat, and the cphmm hook points) is in
+[../../docs/transfer_length_iteration.md](../../docs/transfer_length_iteration.md).
 
 ## Priors
 
