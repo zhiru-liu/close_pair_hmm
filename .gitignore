@@ -33,14 +33,20 @@ __pycache__
 .env
 *.pkl
 
+# local scratch / exploratory notes (not part of the published package)
+exploratory/
+
 # editable-install / build artifacts
 *.egg-info/
 build/
 dist/
 
 # Workflow data + generated outputs (kept local, not version-controlled).
-# Workflow *source* (scripts + notebooks) is tracked; bulky inputs/outputs are not.
+# Workflow *source* (scripts) is tracked; bulky inputs/outputs are not.
 workflows/**/results/
 workflows/**/*.zip
-workflows/example1/journal.pbio.3002472.s003.csv
 *.pdf
+
+# Bacteroides fragilis example: extracted catalog (the data/bf_data.tar.gz asset
+# itself IS committed).
+workflows/bacteroides_fragilis/data/extracted/

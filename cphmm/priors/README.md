@@ -26,7 +26,8 @@ For each species, the pipeline:
    (optionally split into within-/between-clade at a `clade_cutoff`);
 3. writes the result with `cphmm.prior.save_prior`.
 
-See `workflows/example2/prior_prep.py` for the script that generated this set.
+See `workflows/bacteroides_fragilis/generate_prior.py` for a worked prior-generation
+script (it reproduces the bundled prior for that species).
 
 ## Using a run-specific prior instead of the bundled set
 

@@ -173,7 +173,9 @@ and bundled priors are built from — are released here:
   README); follow that link to download the per-species catalogues.
 
 These let you reproduce the close-pair inference end to end and regenerate priors for the
-paper's species.
+paper's species. The worked example in
+[workflows/bacteroides_fragilis/](workflows/bacteroides_fragilis/) runs this end to end
+for one species, downloading a compact catalog subset from a GitHub Release on first run.
 
 ### Figure-generation scripts (original Python 2 analysis code)
 
@@ -199,17 +201,33 @@ cphmm/                  Installable package
   _cphmm_kernels.py     Numba-JIT kernels exploiting the sparse transition topology
   seq_manip.py          Block coarse-graining + block<->genome coordinate conversion
   infer_pipelines.py    Batch inference over many pairs via a DataHelper
+  datahelper.py         ClosePairDataHelper protocol + BaseClosePairDataHelper mixin
   config.py             Block size, min sequence length, default prior path, # bins
+  io/                   Optional SNV-catalog readers ([workflows] extra)
+    liugood2024_qp/     Reader for the LiuGood2024 QP feather catalog
   priors/               Bundled LiuGood2024 reference priors (+ README on derivation)
 
 workflows/              Worked examples (not part of the installed package)
-  example1/             Reproduce one species from the PLoS Biol 2024 paper
-  example2/             Tsimane/Hadza cohort inference + prior preparation
-  test/                 Performance/profiling script
+  bacteroides_fragilis/ End-to-end, reproducible single-species example
 
 tests/                  Unit tests (run: python tests/test_recomb_coordinates.py)
-docs/                   Concepts and usage guides
+docs/                   Concepts, usage, and architecture guides
 ```
+
+---
+
+## Extending to your own data
+
+`cphmm` is format-agnostic: inference and prior estimation consume any object satisfying
+the [`cphmm.datahelper.ClosePairDataHelper`](cphmm/datahelper.py) protocol. To analyze a
+new dataset, write a small adapter — typically by subclassing
+`cphmm.datahelper.BaseClosePairDataHelper` (which provides the prior-sampling boilerplate)
+and implementing `get_close_pairs` + `get_pair_snp_info`. Campaign-specific SNV-catalog
+readers live under [`cphmm.io`](cphmm/io/). See
+[docs/architecture.md](docs/architecture.md) for the layered design and the planned
+generic-catalog / NCBI-build extensions, and
+[workflows/bacteroides_fragilis/datahelper.py](workflows/bacteroides_fragilis/datahelper.py)
+for a worked adapter.
 
 ---
 
@@ -219,6 +237,8 @@ docs/                   Concepts and usage guides
   iterative refinement, and how outputs are computed.
 - [docs/usage.md](docs/usage.md) — writing a `DataHelper`, running single-pair and batch
   inference, generating priors, and interpreting the output tables.
+- [docs/architecture.md](docs/architecture.md) — package layers, the canonical SNV-table
+  contract, and planned extensions.
 - [cphmm/priors/README.md](cphmm/priors/README.md) — prior file format, how the bundled
   priors were derived, and generating run-specific priors.
 

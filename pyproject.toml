@@ -32,8 +32,10 @@ workflows = [
 Paper = "https://doi.org/10.1371/journal.pbio.3002472"
 
 [tool.setuptools]
-packages = ["cphmm"]
+packages = ["cphmm", "cphmm.io", "cphmm.io.liugood2024_qp"]
 
 [tool.setuptools.package-data]
 # Ship the bundled reference priors (LiuGood2024 QP-SNV priors) with the package.
 cphmm = ["priors/*.csv", "priors/README.md"]
+# Codon table for the vendored LiuGood2024 site-type annotation.
+"cphmm.io.liugood2024_qp" = ["codons.csv"]

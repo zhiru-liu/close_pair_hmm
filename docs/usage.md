@@ -35,11 +35,21 @@ the pair:
 
 A minimal sketch:
 
+The easiest way to implement this is to subclass
+`cphmm.datahelper.BaseClosePairDataHelper`, which provides `get_snp_vector`,
+`get_random_pair`, and the vectorized `sample_prior_blocks` for you. You then only
+supply `species`, `genome_len`, `get_close_pairs`, and `get_pair_snp_info` (set
+`self.sample_names` so the default prior sampler can draw random pairs, or override
+`_prior_pair_pool()` to restrict sampling to a diverged-pair pool):
+
 ```python
-class MyDataHelper:
+from cphmm.datahelper import BaseClosePairDataHelper
+
+class MyDataHelper(BaseClosePairDataHelper):
     def __init__(self, species):
         self.species = species
         self.genome_len = ...                 # number of core sites
+        self.sample_names = [...]             # for prior block sampling
         self._pairs = self._screen_close_pairs()   # apply identical-fraction cutoff here
 
     def get_close_pairs(self):
@@ -53,8 +63,10 @@ class MyDataHelper:
         return snp_vec, contigs, locs
 ```
 
-See `workflows/example1/plosbio24_datahelper.py` and
-`workflows/example2/tsimane_datahelper.py` for real implementations.
+You can also implement the [`cphmm.datahelper.ClosePairDataHelper`](../cphmm/datahelper.py)
+protocol structurally without inheriting. See
+[`workflows/bacteroides_fragilis/datahelper.py`](../workflows/bacteroides_fragilis/datahelper.py)
+for a worked adapter (over the `cphmm.io.liugood2024_qp` catalog reader).
 
 ## 2. Batch inference over many pairs
 
@@ -140,7 +152,7 @@ Then either set `dh.hmm_prior_path = "/path/to/run_work_folder/priors"` (batch p
 or pass `prior_path=...` to `ClosePairHMM`. See
 [../cphmm/priors/README.md](../cphmm/priors/README.md) for the file format.
 
-`workflows/example2/prior_prep.py` is a complete prior-preparation script.
+`workflows/bacteroides_fragilis/generate_prior.py` is a complete prior-preparation script.
 
 ## 5. Tuning knobs
 
@@ -160,4 +172,5 @@ Per-model knobs (constructor / `infer`): `n_iter` (EM iterations per fit),
 
 The forward/backward/Viterbi kernels are Numba-JIT compiled and cached. The first call in
 a fresh process incurs a one-time compile cost (~1–2 s); subsequent runs reuse the cached
-bitcode. A representative profiling/benchmark script is `workflows/test/performance_test.py`.
+bitcode. A 200 kb sequence with the default settings decodes in well under a second once
+the kernels are warm.
