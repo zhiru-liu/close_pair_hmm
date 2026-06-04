@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cphmm"
+version = "0.1.0"
+description = "Close-Pair HMM (CP-HMM) for inferring bacterial recombination from closely related genome pairs"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [
+    { name = "Zhiru Liu" },
+    { name = "Benjamin H. Good" },
+]
+keywords = ["bioinformatics", "microbiome", "recombination", "HMM", "population-genetics"]
+dependencies = [
+    "numpy",
+    "scipy",
+    "pandas",
+    "numba",
+]
+
+[project.optional-dependencies]
+# Used by the example workflows for reading compressed SNV catalogues.
+workflows = [
+    "pyarrow",
+    "biopython",
+]
+
+[project.urls]
+Paper = "https://doi.org/10.1371/journal.pbio.3002472"
+
+[tool.setuptools]
+packages = ["cphmm"]
+
+[tool.setuptools.package-data]
+# Ship the bundled reference priors (LiuGood2024 QP-SNV priors) with the package.
+cphmm = ["priors/*.csv", "priors/README.md"]

@@ -6,7 +6,12 @@ dependencies:
   - python>=3.8
   - numpy
   - scipy
+  - numba # JIT-compiled HMM kernels (forward/backward/Viterbi)
   - ipykernel
   - pyarrow # For accessing compressed SNV catalogues
   - pandas
   - biopython
+  - pip
+  # After `conda activate cphmm`, install this package in editable mode:
+  #   pip install -e .
+  # (or `pip install -e ".[workflows]"` to include the example-workflow deps)
