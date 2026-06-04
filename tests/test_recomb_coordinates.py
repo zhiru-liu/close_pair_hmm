@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-import infer_pipelines
+import cphmm.infer_pipelines as infer_pipelines
 from cphmm.recomb_inference import prepare_transfer_df
 
 

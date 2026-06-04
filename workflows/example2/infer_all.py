@@ -4,7 +4,7 @@ import os
 
 import cphmm.prior
 import tsimane_datahelper
-import infer_pipelines
+import cphmm.infer_pipelines as infer_pipelines
 
 # ugly workaround for now
 sys.path.append('/Users/Device6/Documents/Research/bgoodlab/microbiome_codiv/comigration_metagenomics/')

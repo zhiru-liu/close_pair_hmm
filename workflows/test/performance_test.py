@@ -3,7 +3,7 @@ import pstats
 
 import cphmm.recomb_inference as ri
 import cphmm.config
-import infer_pipelines
+import cphmm.infer_pipelines as infer_pipelines
 
 import numpy as np
 import time

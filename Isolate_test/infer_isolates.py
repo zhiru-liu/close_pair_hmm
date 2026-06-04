@@ -34,7 +34,7 @@ for p in (REPO_ROOT, THIS_DIR):
 import pandas as pd
 
 import cphmm.config
-import infer_pipelines
+import cphmm.infer_pipelines as infer_pipelines
 from isolate_datahelper import (
     ACCESSIONS,
     HMM_PRIOR_PATH,
@@ -61,7 +61,7 @@ def _worker_init(accession: str, prior_dir: str, clade_cutoff_bin: int,
             sys.path.insert(0, p)
 
     from isolate_datahelper import DataHelper_Isolate as _DH  # noqa: WPS433
-    import infer_pipelines as _ip  # noqa: WPS433
+    import cphmm.infer_pipelines as _ip  # noqa: WPS433
 
     dh = _DH(accession, hmm_prior_path=prior_dir)
     model = _ip.init_hmm(

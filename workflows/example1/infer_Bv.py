@@ -6,7 +6,7 @@ import time
 load_dotenv()
 
 import plosbio24_datahelper
-import infer_pipelines
+import cphmm.infer_pipelines as infer_pipelines
 
 species = 'Bacteroides_vulgatus_57955'
 print("Loading data for {}".format(species))

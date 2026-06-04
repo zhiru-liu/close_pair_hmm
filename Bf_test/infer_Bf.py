@@ -12,7 +12,7 @@ if str(REPO_ROOT) not in sys.path:
 if str(THIS_DIR) not in sys.path:
     sys.path.insert(0, str(THIS_DIR))
 
-import infer_pipelines
+import cphmm.infer_pipelines as infer_pipelines
 from bf_datahelper import DataHelper_Bf, HMM_PRIOR_PATH, SNV_SPECIES
 from compare_to_ground_truth import write_comparison_files
 
