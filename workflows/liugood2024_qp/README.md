@@ -49,8 +49,23 @@ published transfer/pair counts, clonal-divergence correlation, transfer-interval
 - `--iterative {auto,on,off}` — clonal-emission refinement; `auto` enables it for the
   two-clade species (`Bacteroides_vulgatus_57955`, `Alistipes_shahii_62199`), which also use
   clade separation (detected from the 80-bin prior shape).
-- `--transfer-length` — expected transfer length (bp) for the HMM.
+- `--transfer-length` — expected transfer length (bp) for the HMM (default 1000).
 - `--max-pairs N` — cap pairs per species (quick smoke tests).
+
+## Note on the transfer-length parameter
+
+The published QP analysis did **not** use a fixed transfer length. Its final pipeline
+(`close_pair_stage2-3_iterative.py` in `microbiome_evolution`) determined the transfer
+length **per species, iteratively, starting from 1000 bp**: decode, recompute the mean
+length of the detected transfers, re-decode, until convergence (per-clade for the two-clade
+species). So `--transfer-length 1000` here matches the paper's *initialization* and gives
+close agreement (~96–98% transfer-interval overlap); it is not a fixed published value.
+
+Two distinct refinements are easy to conflate: cphmm's `--iterative` flag refines the
+**clonal emission** rate, which is *not* the paper's **transfer-length** iteration. The
+transfer-length iteration is not ported here — reproducing it exactly would re-estimate the
+mean transfer length from each pass and re-run. With the default 1000 the remaining
+difference is mostly in transfer-boundary precision, not in which transfers are detected.
 
 ## Priors
 

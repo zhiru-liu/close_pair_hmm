@@ -60,7 +60,9 @@ def parse_args():
     p.add_argument("--pair-source", choices=["published", "select"], default="published")
     p.add_argument("--max-pairs", type=int, default=None)
     p.add_argument("--transfer-length", type=float, default=1000.,
-                   help="Expected transfer length (bp) for the HMM.")
+                   help="Expected transfer length (bp) for the HMM. The paper refined this "
+                        "per species iteratively starting from 1000 (not a fixed value); "
+                        "1000 matches that initialization. See README.")
     p.add_argument("--iterative", choices=["auto", "on", "off"], default="auto",
                    help="Iterative clonal-emission refinement (auto: on for two-clade species).")
     p.add_argument("--regenerate-prior", action="store_true",
