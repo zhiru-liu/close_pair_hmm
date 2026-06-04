@@ -230,3 +230,7 @@ If you use this software, please cite the paper:
 
 > Liu Z, Good BH. Dynamics of bacterial recombination in the human gut microbiome.
 > PLoS Biol. 2024;22(2):e3002472. https://doi.org/10.1371/journal.pbio.3002472
+
+## License
+
+Released under the [MIT License](LICENSE).
