@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/cphmm_logo_dark.png">
+    <img src="docs/images/cphmm_logo_light.png" alt="cphmm — close-pair HMM for bacterial recombination" width="360">
+  </picture>
+</p>
+
 # cphmm — Close-Pair HMM for bacterial recombination
 
 `cphmm` is a Python 3 implementation of the **Close-Pair Hidden Markov Model (CP-HMM)**
