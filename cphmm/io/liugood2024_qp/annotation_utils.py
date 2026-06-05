@@ -3,7 +3,11 @@
 Vendored from the LiuGood-2024-SNVs repository
 (https://github.com/zhiru-liu/LiuGood-2024-SNVs, commit 3d9949f), the author's
 own MIT-licensed code, so the CP-HMM LiuGood2024 workflows are self-contained.
-Unmodified except for this header.
+Changes from upstream: this header, plus a fix in `annotate_sequence_site_types`
+to allocate the gene-name / site-type / mutation arrays with ``dtype=object`` so
+long Gene IDs are not truncated by a fixed-width '<U2' array (site-type and
+mutation tokens are <= 2 chars, so the 4D-core mask used for recombination was
+unaffected; only the Gene Name column was clipped).
 """
 import numpy as np
 import os
@@ -121,11 +125,15 @@ def annotate_sequence_site_types(sequence, gene_df):
     """
 
     # initialize all the data arrays
+    # dtype=object so long strings are not truncated. A plain np.full(n, 'NA')
+    # yields a fixed-width '<U2' array, which silently truncates any assigned
+    # value longer than 2 chars -- harmless for site types ('4D') and mutation
+    # effects ('nn'), but it clips Gene IDs in `gene_names`.
     contig_len = len(sequence)
-    variants = np.full(contig_len, 'NA')
+    variants = np.full(contig_len, 'NA', dtype=object)
     gene_counts = np.zeros(contig_len)
-    gene_names = np.full(contig_len, 'NA')
-    muts = np.full((contig_len, 4), 'NA')
+    gene_names = np.full(contig_len, 'NA', dtype=object)
+    muts = np.full((contig_len, 4), 'NA', dtype=object)
 
     # work with one contig at a time
     cds_genes = gene_df[gene_df['Type'] == 'CDS']
