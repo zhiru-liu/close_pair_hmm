@@ -1,9 +1,12 @@
-# Spec: per-species iterative transfer-length estimation (planned)
+# Spec: per-species iterative transfer-length estimation
 
 Implementation spec for porting the Liu & Good 2024 transfer-length determination into the
-QP reproduction. **Not yet implemented** — `workflows/liugood2024_qp` currently uses a fixed
-`transfer_length` (default 1000, the paper's initialization). This note is the complete
-ingredient list so the feature can be added in one pass.
+QP reproduction. **Implemented** as `--transfer-length iterative`
+(`infer_iterative_transfer_length` in `workflows/liugood2024_qp/reproduce.py`); the default
+remains a fixed `transfer_length` of 1000 (the paper's initialization). **One piece is
+deliberately deferred:** the merge/filter of detected transfers before averaging (see the
+"Important" note below) — the current mean is over raw decoded segments, so it runs slightly
+short of the published estimate. This note remains the reference for that follow-up.
 
 ## What the paper actually did
 
@@ -57,10 +60,12 @@ will be biased short.
 
 ## Placement
 
-Add it as a new mode in `workflows/liugood2024_qp/reproduce.py` (a per-species outer loop
-that re-calls `infer_pairs` until convergence), e.g. `--transfer-length iterative`. Keep it
-in the workflow, not in `cphmm` core. It is **orthogonal to** `cphmm`'s existing `iterative`
-flag, which refines the **clonal emission** rate — a different quantity; the two can compose.
+Implemented as a new mode in `workflows/liugood2024_qp/reproduce.py`
+(`infer_iterative_transfer_length`, a per-species outer loop that re-calls `infer_pairs`
+until convergence), selected with `--transfer-length iterative`. It lives in the workflow,
+not in `cphmm` core. It is **orthogonal to** `cphmm`'s existing `iterative` flag, which
+refines the **clonal emission** rate — a different quantity; the two compose. Covered by
+`tests/test_qp_iterative_transfer_length.py`.
 
 ## Verification
 

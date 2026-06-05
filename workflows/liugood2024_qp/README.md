@@ -27,8 +27,9 @@ names are uniform across the catalog, reference, prior, and table (`<genus>_<spe
 python workflows/liugood2024_qp/reproduce.py \
     --data-dir <catalog> --reference-dir <refs> --ground-truth <table.csv>
 
-# all 29 species (heavy):
-python workflows/liugood2024_qp/reproduce.py --all --data-dir … --reference-dir … --ground-truth …
+# all 29 species (heavy), 8 species in parallel, with iterative transfer length:
+python workflows/liugood2024_qp/reproduce.py --all --jobs 8 --transfer-length iterative \
+    --data-dir … --reference-dir … --ground-truth …
 ```
 
 Per species the driver loads the catalog, takes the published close pairs, runs inference
@@ -49,7 +50,10 @@ published transfer/pair counts, clonal-divergence correlation, transfer-interval
 - `--iterative {auto,on,off}` — clonal-emission refinement; `auto` enables it for the
   two-clade species (`Bacteroides_vulgatus_57955`, `Alistipes_shahii_62199`), which also use
   clade separation (detected from the 80-bin prior shape).
-- `--transfer-length` — expected transfer length (bp) for the HMM (default 1000).
+- `--transfer-length` — expected transfer length (bp) for the HMM (default 1000), or
+  `iterative` to re-estimate it per species the way the paper did (see below).
+- `--jobs N` / `-j N` — run N species in parallel (process pool). Each worker loads its
+  own species catalog, so peak memory scales with N; size it to your RAM.
 - `--max-pairs N` — cap pairs per species (quick smoke tests).
 
 ## Note on the transfer-length parameter
@@ -61,13 +65,17 @@ length of the detected transfers, re-decode, until convergence (per-clade for th
 species). So `--transfer-length 1000` here matches the paper's *initialization* and gives
 close agreement (~96–98% transfer-interval overlap); it is not a fixed published value.
 
+Pass `--transfer-length iterative` to reproduce that procedure: the driver decodes all
+pairs, recomputes the mean detected transfer length, and re-decodes until the fractional
+change is < 0.1 (per-clade for the two-clade species), up to 3 passes, starting from 1000.
+This is implemented in the workflow (`infer_iterative_transfer_length` in `reproduce.py`),
+not in cphmm core. One caveat: the paper averaged over *merged + filtered* transfers (drop
+< 5 blocks); that filter is **not** ported yet, so the estimate runs slightly short of the
+published one. See [../../docs/transfer_length_iteration.md](../../docs/transfer_length_iteration.md).
+
 Two distinct refinements are easy to conflate: cphmm's `--iterative` flag refines the
-**clonal emission** rate, which is *not* the paper's **transfer-length** iteration. The
-transfer-length iteration is not ported here — reproducing it exactly would re-estimate the
-mean transfer length from each pass and re-run. With the default 1000 the remaining
-difference is mostly in transfer-boundary precision, not in which transfers are detected.
-A complete porting spec (algorithm, the merge/filter caveat, and the cphmm hook points) is in
-[../../docs/transfer_length_iteration.md](../../docs/transfer_length_iteration.md).
+**clonal emission** rate, which is *not* the paper's **transfer-length** iteration. They are
+orthogonal and compose (the two-clade species use both).
 
 ## Priors
 
