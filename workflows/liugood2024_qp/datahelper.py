@@ -63,6 +63,7 @@ class DataHelper_QP(BaseClosePairDataHelper):
         ].to_numpy(dtype=np.uint8, copy=False)
         self.core_to_snvs = np.asarray(self.snv_data.core_to_snvs, dtype=bool)
         self.core_4D = np.asarray(self.snv_data.core_4D, dtype=bool)
+        self.core_1D = np.asarray(self.snv_data.core_1D, dtype=bool)
         self.genome_len = int(self.snv_data.core_4D.sum())
 
         self.ground_truth = self._load_ground_truth()
@@ -133,7 +134,14 @@ class DataHelper_QP(BaseClosePairDataHelper):
 
     # -- CP-HMM inference input (same 4D-core logic as the Bf helper) ----------
 
-    def get_pair_snp_info(self, pair):
+    def get_pair_snp_info(self, pair, site_class="4D"):
+        """Return CP-HMM input: SNP vector, contig names, contig locations.
+
+        ``site_class`` selects the covered core sites used: ``'4D'`` (default,
+        the synonymous sites the HMM runs on), ``'1D'`` (nonsynonymous, used by
+        the 1D tract-extension add-on), or ``'all'`` (every covered core site).
+        Matches the ``IsolateSNVHelper.get_pair_snp_info`` contract.
+        """
         sample1, sample2 = str(pair[0]), str(pair[1])
         idx1 = self.sample_to_index[sample1]
         idx2 = self.sample_to_index[sample2]
@@ -145,7 +153,17 @@ class DataHelper_QP(BaseClosePairDataHelper):
         coverage = self.coverage_values[:, idx1] & self.coverage_values[:, idx2]
         snp_vec = np.zeros(self.core_to_snvs.shape[0], dtype=bool)
         snp_vec[self.core_to_snvs] = snv_diffs
-        mask = self.core_4D & coverage
+
+        if site_class == "4D":
+            site_mask = self.core_4D
+        elif site_class == "1D":
+            site_mask = self.core_1D
+        elif site_class in ("all", "covered"):
+            site_mask = np.ones_like(self.core_4D, dtype=bool)
+        else:
+            raise ValueError("site_class must be one of '4D', '1D', or 'all'")
+
+        mask = site_mask & coverage
         snp_vec = snp_vec[mask]
 
         indices = self.snv_data.coverage.index[mask]
