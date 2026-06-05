@@ -158,6 +158,31 @@ Other practical notes:
   (low donor divergence) are harder to detect than between-clade ones; treat counts near
   the detection limit with care.
 
+### Recover 1D-rich tract flanks the 4D HMM truncates (optional add-on)
+
+Detection runs on **4D (synonymous)** density — the right near-neutral clock for *finding*
+transfers — but that signal **truncates tract boundaries** at loci imported from a donor
+that differs mainly at **nonsynonymous (1D)** sites (e.g. diversifying-selection surface
+genes). The synonymous-rich core is found, but the 1D-rich / 4D-poor flank is left
+misclassified as clonal, where it inflates the apparent *clonal* dN/dS (in *A. putredinis*,
+above 1).
+
+`cphmm.tract_extension` is an optional, off-by-default post-processing step that **widens
+already-detected boundaries** into adjacent regions of abnormally high 1D (or all-SNV)
+density. It is not a re-inference — the 4D HMM and prior are untouched:
+
+```python
+pair_dat, transfer_dat = infer_pipelines.infer_pairs(datahelper, pairs, extend_with='1D')
+```
+
+![1D tract extension on two A. putredinis pairs](docs/images/tract_extension_demo.png)
+
+Grey = the CP-HMM-detected 4D core; yellow = the previously-missed 1D-rich flank; green =
+the tract after extension. The 1D (red) ticks stay dense through the flank while 4D (blue)
+drops out — which is why the 4D-only HMM stopped at the grey boundary, and why extending on
+1D density recovers it. See [docs/tract_extension.md](docs/tract_extension.md) for the
+algorithm, parameters, and the all-SNV variant.
+
 ---
 
 ## Where to get example data and reproduce the paper
@@ -198,6 +223,7 @@ the upstream data-processing pipeline.
 cphmm/                  Installable package
   model.py              ClosePairHMM: states, transitions, EM fitting, decoding
   recomb_inference.py   infer(): per-pair segmentation + clonal-divergence estimation
+  tract_extension.py    Optional add-on: widen detected tracts into 1D/all-SNV-dense flanks
   prior.py              Build/save transfer-divergence priors from a DataHelper
   hmm_backend.py        Log-space forward/backward/Viterbi (dispatch + numpy fallback)
   _cphmm_kernels.py     Numba-JIT kernels exploiting the sparse transition topology
@@ -242,6 +268,8 @@ for a worked adapter.
   inference, generating priors, and interpreting the output tables.
 - [docs/architecture.md](docs/architecture.md) — package layers, the canonical SNV-table
   contract, and planned extensions.
+- [docs/tract_extension.md](docs/tract_extension.md) — the optional 1D / all-SNV tract
+  boundary-extension add-on: motivation, algorithm, parameters, and entry points.
 - [cphmm/priors/README.md](cphmm/priors/README.md) — prior file format, how the bundled
   priors were derived, and generating run-specific priors.
 

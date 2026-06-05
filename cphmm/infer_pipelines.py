@@ -7,6 +7,7 @@ import time
 import cphmm.model as hmm
 import cphmm.recomb_inference as ri
 import cphmm.config
+import cphmm.tract_extension as tract_extension
 
 
 def init_hmm(species_name, genome_len, block_size, prior_path=None,
@@ -43,7 +44,7 @@ def annotate_transfer_reference_coordinates(transfer_dat, contigs, locs):
 
 
 def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_iter=3,
-                transfer_length=1000.):
+                transfer_length=1000., extend_with=None, extension_params=None):
     """
     Infer the clonal divergence and transfer events for all close pairs in the datahelper
 
@@ -59,6 +60,22 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_ite
 
     :param datahelper: an object with the above methods / attributes
     :param pairs: a list of pairs of sample names to infer
+    :param extend_with: site class to drive 1D-style tract extension, or None
+        (default) to disable it and leave the 4D-only behaviour unchanged. When
+        set, each pair's detected tracts are post-processed with
+        :mod:`cphmm.tract_extension`, widening boundaries into adjacent regions of
+        abnormally high SNV density in that site class. ``'1D'`` uses the narrow,
+        validated :func:`~cphmm.tract_extension.extend_tracts_by_1d_density`
+        (nonsynonymous-driven, emits ``extension_1d_snvs``/``extension_4d_snvs``);
+        any other class (e.g. ``'all'``) uses
+        :func:`~cphmm.tract_extension.extend_tracts_by_density` so 2D/3D-rich
+        flanks are also absorbed (emits ``extension_snvs``/``extension_4d_snvs``).
+        Requires the datahelper to support ``get_pair_snp_info(pair,
+        site_class=...)``. When enabled, the returned transfer table uses the
+        extended schema (reference coordinates + provenance columns) rather than
+        the raw block/snp_vec coordinates.
+    :param extension_params: optional :class:`cphmm.tract_extension.ExtensionParams`
+        overriding the default extension thresholds.
     """
     model = init_hmm(datahelper.species, datahelper.genome_len,
                      cphmm.config.HMM_BLOCK_SIZE,
@@ -88,10 +105,27 @@ def infer_pairs(datahelper, pairs, clade_cutoff_bin=None, iterative=False, n_ite
         pair_dat.loc[i] = [pair[0], pair[1], naive_div, est_div, genome_len, clonal_len]
         transfer_dat['genome1'] = pair[0]
         transfer_dat['genome2'] = pair[1]
-        transfer_dats.append(transfer_dat)
 
         # annotate the reference genome coordinates
         annotate_transfer_reference_coordinates(transfer_dat, contigs, locs)
+
+        if extend_with:
+            # Post-process: widen boundaries into adjacent SNV-dense flanks the
+            # 4D HMM cannot see. The main snp_vec is already the 4D info.
+            driver = datahelper.get_pair_snp_info(pair, site_class=extend_with)
+            snp_info_4d = (snp_vec, contigs, locs)
+            if extend_with == '1D':
+                transfer_dat = tract_extension.extend_tracts_by_1d_density(
+                    transfer_dat, driver, params=extension_params,
+                    snp_info_4d=snp_info_4d,
+                )
+            else:
+                transfer_dat = tract_extension.extend_tracts_by_density(
+                    transfer_dat, driver, params=extension_params,
+                    count_infos={'4d': snp_info_4d},
+                )
+
+        transfer_dats.append(transfer_dat)
 
         processed_count += 1
         if processed_count % 100 == 0:
