@@ -208,8 +208,7 @@ paper's species. Two worked examples use them:
 [workflows/bacteroides_fragilis/](workflows/bacteroides_fragilis/) runs the pipeline for one
 species clone-and-run (a compact catalog subset ships in the repo), and
 [workflows/liugood2024_qp/](workflows/liugood2024_qp/) reproduces the full 29-species QP
-analysis and verifies it against the published supplementary table (point it at a local copy
-of the catalog).
+analysis and verifies it against the [published supplementary table](https://doi.org/10.1371/journal.pbio.3002472.s003).
 
 ### Figure-generation scripts (original Python 2 analysis code)
 
