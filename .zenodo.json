@@ -1,0 +1,37 @@
+{
+  "title": "cphmm: Close-Pair Hidden Markov Model for detecting recombination between closely related bacterial genomes",
+  "description": "Python 3 implementation of the Close-Pair HMM (CP-HMM) for inferring homologous recombination between closely related bacterial genome pairs, as described in Liu & Good, \"Dynamics of bacterial recombination in the human gut microbiome\" (PLOS Biology 2024). Given the SNV differences along the genome between a pair of conspecific samples, the model segments the genome into clonally inherited and recombined regions. Includes the I/O layers for quasi-phased metagenome catalogs and cultured-isolate SNV tables, and the tract-extension add-on used in Liu & Good, \"Dynamics of dN/dS within recombining bacterial populations\".",
+  "upload_type": "software",
+  "access_right": "open",
+  "license": "mit",
+  "language": "eng",
+  "creators": [
+    {
+      "name": "Liu, Zhiru",
+      "affiliation": "Department of Applied Physics, Stanford University"
+    },
+    {
+      "name": "Good, Benjamin H.",
+      "affiliation": "Department of Applied Physics and Department of Biology, Stanford University; Chan Zuckerberg Biohub - San Francisco"
+    }
+  ],
+  "keywords": [
+    "hidden Markov model",
+    "homologous recombination",
+    "bacterial evolution",
+    "human gut microbiome",
+    "population genetics"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://doi.org/10.1371/journal.pbio.3002472",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-article"
+    },
+    {
+      "identifier": "https://doi.org/10.1101/2025.09.09.675256",
+      "relation": "isSupplementTo",
+      "resource_type": "publication-preprint"
+    }
+  ]
+}
